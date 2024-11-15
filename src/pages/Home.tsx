@@ -15,8 +15,16 @@ import {
   Tooltip,
   CircularProgress,
   Stack,
-  styled
+  styled,
+  TextField,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import ModeEditOutlineRoundedIcon from '@mui/icons-material/ModeEditOutlineRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
@@ -46,6 +54,7 @@ const ActionButton = styled(IconButton)(({ theme }) => ({
 // Type definitions
 type Order = 'asc' | 'desc';
 type OrderBy = 'firstName' | 'lastName' | 'email' | 'phoneNumber' | 'company' | 'jobTitle';
+type SearchField = OrderBy;
 
 interface HeadCell {
   id: OrderBy;
@@ -62,11 +71,21 @@ const headCells: HeadCell[] = [
   { id: 'jobTitle', label: 'Job Title', width: '15%' },
 ];
 
+const searchableFields: { id: SearchField; label: string }[] = [
+  { id: 'firstName', label: 'First Name' },
+  { id: 'lastName', label: 'Last Name' },
+  { id: 'phoneNumber', label: 'Phone Number' },
+  { id: 'company', label: 'Company' },
+  { id: 'jobTitle', label: 'Job Title' },
+];
+
 export const Home = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [openForm, setOpenForm] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState<SearchField>('firstName');
   
   // Pagination states
   const [page, setPage] = useState(0);
@@ -92,6 +111,14 @@ export const Home = () => {
     fetchContacts();
   }, []);
 
+  // Filter contacts based on search query and field
+  const filteredContacts = contacts.filter(contact => {
+    if (!searchQuery) return true;
+    
+    const value = contact[searchField]?.toString().toLowerCase() || '';
+    return value.includes(searchQuery.toLowerCase());
+  });
+
   // Sorting functions
   const descendingComparator = <T,>(a: T, b: T, orderBy: keyof T) => {
     if (b[orderBy] < a[orderBy]) return -1;
@@ -105,13 +132,26 @@ export const Home = () => {
       : (a: Contact, b: Contact) => -descendingComparator(a, b, orderBy);
   };
 
-  const sortedContacts = contacts.slice().sort(getComparator(order, orderBy));
+  const sortedContacts = filteredContacts.slice().sort(getComparator(order, orderBy));
 
   // Handle sort request
   const handleRequestSort = (property: OrderBy) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
+  };
+
+  // Handle search
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(event.target.value);
+    setPage(0); // Reset to first page when searching
+  };
+
+  // Handle search field change
+  const handleSearchFieldChange = (event: SelectChangeEvent<SearchField>) => {
+    setSearchField(event.target.value as SearchField);
+    setSearchQuery(''); // Clear search query when changing fields
+    setPage(0);
   };
 
   // Pagination handlers
@@ -199,6 +239,40 @@ export const Home = () => {
             <AddCircleOutlineIcon />
           </ActionButton>
         </Tooltip>
+      </Stack>
+
+      {/* Search Section */}
+      <Stack direction="row" spacing={2} mb={3}>
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel id="search-field-label">Search By</InputLabel>
+          <Select<SearchField>
+            labelId="search-field-label"
+            value={searchField}
+            label="Search By"
+            onChange={handleSearchFieldChange}
+          >
+            {searchableFields.map((field) => (
+              <MenuItem key={field.id} value={field.id}>
+                {field.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder={`Search by ${searchableFields.find(f => f.id === searchField)?.label.toLowerCase()}...`}
+          value={searchQuery}
+          onChange={handleSearch}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+          size="small"
+        />
       </Stack>
 
       {/* Contacts Table */}
@@ -291,7 +365,7 @@ export const Home = () => {
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={contacts.length}
+            count={filteredContacts.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
