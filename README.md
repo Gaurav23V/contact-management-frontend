@@ -127,6 +127,3 @@ Required environment variable:
 
 ## License
 This project is licensed under the MIT License.
-```
-
-Would you like me to add or modify any section of the README?
